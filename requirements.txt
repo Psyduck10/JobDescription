@@ -3,5 +3,4 @@ SpaCy
 wordcloud
 matplotlib
 nltk
-pyperclip
 PyMuPDF
