@@ -1,174 +1,102 @@
-import re
 import streamlit as st
-from collections import Counter
+import fitz  # PyMuPDF
+import nltk
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+from nltk.probability import FreqDist
+from nltk import pos_tag
+from nltk.tokenize.treebank import TreebankWordDetokenizer
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
-import fitz  # PyMuPDF for extracting text from PDFs
+import spacy
+import re
 
-# Predefined lists for categorizing skills
-technical_skills = ['python', 'sql', 'aws', 'django', 'tensorflow', 'java', 'html', 'css', 'javascript', 'r', 'node.js']
-soft_skills = ['communication', 'leadership', 'teamwork', 'problem-solving', 'creativity', 'adaptability', 'time management', 'collaboration']
-certifications = ['pmp', 'aws certified', 'certified scrum master', 'google analytics', 'data science certification', 'project management certification']
+# Download stopwords
+nltk.download('stopwords')
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
 
-def extract_keywords_regex(job_description):
-    """
-    Extracts important keywords from a job description using regular expressions.
-    Filters out stopwords and common terms.
-    """
-    # Use regex to find all words (case-insensitive) that are alphabetic
-    words = re.findall(r'\b[a-zA-Z]+\b', job_description.lower())
+# Load the spaCy English model for Named Entity Recognition (NER)
+nlp = spacy.load("en_core_web_sm")
 
-    # Count the frequency of each keyword
-    keyword_frequency = Counter(words)
-    return keyword_frequency.most_common()
-
-def categorize_keywords(keywords):
-    """
-    Categorizes keywords into Technical Skills, Soft Skills, and Certifications.
-    """
-    categorized = {
-        'Technical Skills': [],
-        'Soft Skills': [],
-        'Certifications': []
-    }
-    
-    for keyword, _ in keywords:
-        if keyword in technical_skills:
-            categorized['Technical Skills'].append(keyword.capitalize())
-        elif keyword in soft_skills:
-            categorized['Soft Skills'].append(keyword.capitalize())
-        elif keyword in certifications:
-            categorized['Certifications'].append(keyword.capitalize())
-    
-    return categorized
-
-def generate_wordcloud(keywords):
-    """
-    Generates a word cloud from the extracted keywords.
-    """
-    word_freq = dict(keywords)
-    wordcloud = WordCloud(width=800, height=400, background_color="white").generate_from_frequencies(word_freq)
-    
-    plt.figure(figsize=(8, 4))
-    plt.imshow(wordcloud, interpolation='bilinear')
-    plt.axis("off")
-    return plt
-
-def display_resume_tips():
-    """
-    Displays tips for users on how to incorporate keywords into different sections of their resume.
-    """
-    st.write("""
-    ### How to Add Keywords to Your Resume:
-    - **Skills Section**: Add technical skills like programming languages, tools, and frameworks (e.g., Python, AWS, Django).
-    - **Experience Section**: Mention your experience with the relevant technologies, projects, and tools.
-    - **Certifications Section**: Add any certifications that you hold (e.g., PMP, AWS Certified).
-    - **Summary Section**: Highlight your top skills and expertise in a brief professional summary.
-    """)
-
+# Function to extract text from PDF
 def extract_pdf_text(pdf_file):
-    """
-    Extracts text from the uploaded PDF file using PyMuPDF.
-    """
-    try:
-        doc = fitz.open(pdf_file)
-        text = ""
-        for page_num in range(len(doc)):
-            page = doc.load_page(page_num)  # Extract text from each page
-            text += page.get_text("text")  # Get text in plain format
-        return text
-    except Exception as e:
-        return f"Error reading PDF: {str(e)}"
+    doc = fitz.open(pdf_file)
+    text = ""
+    for page in doc:
+        text += page.get_text("text")
+    return text
 
-def generate_download_link(text, file_name):
-    """
-    Generate a download link for the text content.
-    """
-    st.download_button(label=f"Download {file_name}",
-                       data=text,
-                       file_name=f"{file_name}.txt",
-                       mime="text/plain")
+# Custom stopwords to filter out more irrelevant words
+CUSTOM_STOPWORDS = set(stopwords.words('english')).union({
+    'to', 'of', 'and', 'the', 'in', 'for', 'on', 'with', 'a', 'that', 'by', 'or', 'an', 'as', 'at', 'it', 'this', 'be', 'which'
+})
 
+# Function to extract keywords using NLTK and spaCy
+def extract_keywords_nltk_spacy(job_description):
+    # Tokenize the job description
+    word_tokens = word_tokenize(job_description.lower())
+    
+    # Remove punctuation and non-alphabetic tokens
+    word_tokens = [word for word in word_tokens if word.isalpha()]
+    
+    # Remove stopwords
+    filtered_words = [word for word in word_tokens if word not in CUSTOM_STOPWORDS]
+    
+    # POS tagging
+    tagged_words = pos_tag(filtered_words)
+    
+    # Extract keywords - focus on nouns and adjectives
+    keywords = [word for word, pos in tagged_words if pos in ['NN', 'NNS', 'NNP', 'JJ', 'JJS']]
+    
+    # Use spaCy for Named Entity Recognition (NER) to extract entities like company names, positions, etc.
+    doc = nlp(' '.join(filtered_words))
+    ner_keywords = [ent.text.lower() for ent in doc.ents]
+    
+    # Combine NER keywords and POS-tagged keywords
+    combined_keywords = keywords + ner_keywords
+    
+    # Frequency Distribution of the keywords
+    freq_dist = FreqDist(combined_keywords)
+    
+    # Filter out low frequency words, with a higher threshold
+    min_freq = 3  # Set a minimum frequency threshold
+    filtered_keywords = [word for word, freq in freq_dist.items() if freq >= min_freq]
+    
+    return filtered_keywords, freq_dist
+
+# Streamlit App Layout
 def main():
-    # Set page config for dark/light mode toggle
-    st.set_page_config(page_title="Job Description Keywords Extractor", layout="wide")
+    st.title("Job Description Keyword Extractor")
+    
+    # File uploader
+    uploaded_file = st.file_uploader("Upload your Job Description (PDF)", type="pdf")
+    
+    if uploaded_file is not None:
+        # Extract text from the uploaded PDF
+        job_description = extract_pdf_text(uploaded_file)
+        st.text_area("Job Description", job_description, height=300)
+        
+        # Extract relevant keywords from the job description
+        if job_description:
+            keywords, freq_dist = extract_keywords_nltk_spacy(job_description)
+            
+            # Show the extracted keywords
+            st.write("### Extracted Keywords:")
+            st.write(keywords)
+            
+            # Show WordCloud based on frequency distribution
+            st.write("### Word Cloud of Extracted Keywords:")
+            wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(freq_dist)
+            
+            plt.figure(figsize=(10, 5))
+            plt.imshow(wordcloud, interpolation="bilinear")
+            plt.axis('off')
+            st.pyplot(plt)
+            
+            # Display frequency distribution as a bar chart
+            st.write("### Frequency Distribution of Keywords:")
+            st.bar_chart(freq_dist)
 
-    st.title("Job Description Keywords Extractor")
-    st.write("""
-    Enter a job description below to extract key skills and terms.
-    This tool will help you identify the important keywords to add to your resume.
-    """)
-
-    # Dark mode toggle
-    theme = st.sidebar.radio("Choose theme", ["Light", "Dark"])
-    if theme == "Dark":
-        st.markdown('<style>body{background-color:#2e2e2e;color:white;}</style>', unsafe_allow_html=True)
-
-    # Option to paste job description text
-    job_description_text = st.text_area("Paste the Job Description Here:", height=200)
-
-    # Option to upload a PDF or text file
-    uploaded_file = st.file_uploader("Or Upload Job Description (PDF/Text)", type=["txt", "pdf"], accept_multiple_files=True)
-
-    job_description = None
-    if job_description_text:
-        job_description = job_description_text  # Use the pasted text if available
-    elif uploaded_file:
-        for file in uploaded_file:
-            if file.type == "application/pdf":
-                # Extract text from the PDF
-                job_description = extract_pdf_text(file)
-                st.subheader(f"Job Description from PDF: {file.name}")
-            elif file.type == "text/plain":
-                # Read the text file directly
-                job_description = file.read().decode("utf-8")
-                st.subheader(f"Job Description from Text File: {file.name}")
-
-    if job_description:
-        # Display the job description and option to copy it to clipboard
-        st.write("### Job Description:")
-        st.text_area("Job Description", job_description, height=200)
-
-        # Button to generate download link for the job description
-        generate_download_link(job_description, "Job_Description")
-
-        # Extract keywords from the job description
-        keywords = extract_keywords_regex(job_description)
-
-        # Display the most common keywords
-        st.write("### Extracted Keywords")
-        for keyword, frequency in keywords:
-            st.write(f"- {keyword.capitalize()} (Frequency: {frequency})")
-
-        # Categorize the keywords into Technical, Soft Skills, and Certifications
-        categorized_keywords = categorize_keywords(keywords)
-        st.write("### Categorized Keywords")
-        for category, skills in categorized_keywords.items():
-            st.write(f"**{category}:** {', '.join(skills) if skills else 'None'}")
-
-        # Generate and display word cloud
-        st.write("### Word Cloud of Keywords")
-        generate_wordcloud(keywords)
-        st.pyplot()
-
-        # Provide resume tips
-        display_resume_tips()
-
-        # Create text for downloading extracted keywords
-        extracted_text = "Extracted Keywords:\n"
-        for keyword, frequency in keywords:
-            extracted_text += f"{keyword.capitalize()} (Frequency: {frequency})\n"
-
-        extracted_text += "\nCategorized Keywords:\n"
-        for category, skills in categorized_keywords.items():
-            extracted_text += f"{category}: {', '.join(skills) if skills else 'None'}\n"
-
-        # Add "Download Extracted Keywords" button
-        generate_download_link(extracted_text, "Extracted_Keywords")
-
-    else:
-        st.write("Please enter or upload a job description.")
-
-# Run the app
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
