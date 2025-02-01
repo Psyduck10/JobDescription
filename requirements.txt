@@ -1,4 +1,4 @@
-streamlit==1.22.0
-spacy==3.6.0
-wordcloud==1.8.2.2
-matplotlib==3.7.1
+streamlit
+spacy
+wordcloud
+matplotlib
