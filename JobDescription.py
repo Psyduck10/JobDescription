@@ -1,4 +1,4 @@
-from textblob import TextBlob
+import re
 import streamlit as st
 from collections import Counter
 from wordcloud import WordCloud
@@ -10,17 +10,16 @@ technical_skills = ['python', 'sql', 'aws', 'django', 'tensorflow', 'java', 'htm
 soft_skills = ['communication', 'leadership', 'teamwork', 'problem-solving', 'creativity', 'adaptability', 'time management', 'collaboration']
 certifications = ['pmp', 'aws certified', 'certified scrum master', 'google analytics', 'data science certification', 'project management certification']
 
-def extract_keywords_textblob(job_description):
+def extract_keywords_regex(job_description):
     """
-    Extracts important keywords from a job description using TextBlob.
+    Extracts important keywords from a job description using regular expressions.
     Filters out stopwords and common terms.
     """
-    blob = TextBlob(job_description)
-    # Extract nouns (common nouns and proper nouns)
-    keywords = [word.lower() for word, pos in blob.tags if pos in ['NN', 'NNP']]
-    
+    # Use regex to find all words (case-insensitive) that are alphabetic
+    words = re.findall(r'\b[a-zA-Z]+\b', job_description.lower())
+
     # Count the frequency of each keyword
-    keyword_frequency = Counter(keywords)
+    keyword_frequency = Counter(words)
     return keyword_frequency.most_common()
 
 def categorize_keywords(keywords):
@@ -134,7 +133,7 @@ def main():
         generate_download_link(job_description, "Job_Description")
 
         # Extract keywords from the job description
-        keywords = extract_keywords_textblob(job_description)
+        keywords = extract_keywords_regex(job_description)
 
         # Display the most common keywords
         st.write("### Extracted Keywords")
