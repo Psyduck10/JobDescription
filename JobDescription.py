@@ -9,9 +9,12 @@ import matplotlib.pyplot as plt
 import fitz  # PyMuPDF for extracting text from PDFs
 
 # Download required NLTK datasets
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('averaged_perceptron_tagger')
+try:
+    nltk.download('punkt')
+    nltk.download('stopwords')
+    nltk.download('averaged_perceptron_tagger')
+except Exception as e:
+    st.error(f"Error downloading NLTK data: {e}")
 
 # Predefined lists for categorizing skills
 technical_skills = ['python', 'sql', 'aws', 'django', 'tensorflow', 'java', 'html', 'css', 'javascript', 'r', 'node.js']
