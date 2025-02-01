@@ -7,6 +7,7 @@ from nltk import pos_tag
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import os
+import pyperclip  # For copying text to clipboard
 
 # Download required NLTK datasets
 nltk.download('punkt')
@@ -80,6 +81,13 @@ def display_resume_tips():
     - **Summary Section**: Highlight your top skills and expertise in a brief professional summary.
     """)
 
+def copy_to_clipboard(text):
+    """
+    Copies the given text to the clipboard.
+    """
+    pyperclip.copy(text)
+    st.success("Copied to clipboard!")
+
 def main():
     # Set page config for dark/light mode toggle
     st.set_page_config(page_title="Job Description Keywords Extractor", layout="wide")
@@ -124,6 +132,19 @@ def main():
 
             # Provide resume tips
             display_resume_tips()
+
+            # Create text for copying to clipboard
+            copied_text = "Extracted Keywords:\n"
+            for keyword, frequency in keywords:
+                copied_text += f"{keyword.capitalize()} (Frequency: {frequency})\n"
+
+            copied_text += "\nCategorized Keywords:\n"
+            for category, skills in categorized_keywords.items():
+                copied_text += f"{category}: {', '.join(skills) if skills else 'None'}\n"
+
+            # Add "Copy to Clipboard" button
+            if st.button(f"Copy Extracted Keywords for {file.name}"):
+                copy_to_clipboard(copied_text)
 
     else:
         st.write("Please upload a job description file to extract keywords.")
