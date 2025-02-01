@@ -2,3 +2,4 @@ streamlit
 SpaCy
 wordcloud
 matplotlib
+nltk
