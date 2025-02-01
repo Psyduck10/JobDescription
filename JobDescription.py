@@ -6,8 +6,7 @@ from nltk.tokenize import word_tokenize
 from nltk import pos_tag
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
-import os
-import pyperclip  # For copying text to clipboard
+import fitz  # PyMuPDF for extracting text from PDFs
 
 # Download required NLTK datasets
 nltk.download('punkt')
@@ -81,12 +80,26 @@ def display_resume_tips():
     - **Summary Section**: Highlight your top skills and expertise in a brief professional summary.
     """)
 
-def copy_to_clipboard(text):
+def extract_pdf_text(pdf_file):
     """
-    Copies the given text to the clipboard.
+    Extract text from the uploaded PDF file using PyMuPDF.
     """
-    pyperclip.copy(text)
-    st.success("Copied to clipboard!")
+    doc = fitz.open(pdf_file)
+    text = ""
+    for page_num in range(len(doc)):
+        page = doc.load_page(page_num)
+        text += page.get_text("text")
+    return text
+
+def generate_download_link(text, file_name):
+    """
+    Generate a download link for the text content.
+    """
+    # Create the file and encode it to base64
+    st.download_button(label=f"Download {file_name}",
+                       data=text,
+                       file_name=f"{file_name}.txt",
+                       mime="text/plain")
 
 def main():
     # Set page config for dark/light mode toggle
@@ -103,13 +116,27 @@ def main():
     if theme == "Dark":
         st.markdown('<style>body{background-color:#2e2e2e;color:white;}</style>', unsafe_allow_html=True)
 
-    # File uploader for multiple job descriptions
-    uploaded_file = st.file_uploader("Upload Job Description(s)", type=["txt", "docx"], accept_multiple_files=True)
+    # File uploader for multiple job descriptions (PDF or text)
+    uploaded_file = st.file_uploader("Upload Job Description(s)", type=["txt", "pdf"], accept_multiple_files=True)
 
     if uploaded_file:
         for file in uploaded_file:
-            job_description = file.read().decode("utf-8")  # Read file content as text
-            st.subheader(f"Job Description: {file.name}")
+            job_description = ""
+            if file.type == "application/pdf":
+                # Extract text from the PDF
+                job_description = extract_pdf_text(file)
+                st.subheader(f"Job Description from PDF: {file.name}")
+            elif file.type == "text/plain":
+                # Read the text file directly
+                job_description = file.read().decode("utf-8")
+                st.subheader(f"Job Description from Text File: {file.name}")
+
+            # Display the job description and option to copy it to clipboard
+            st.write("### Job Description:")
+            st.text_area("Job Description", job_description, height=200)
+
+            # Button to generate download link for the job description
+            generate_download_link(job_description, file.name)
 
             # Extract keywords from the job description
             keywords = extract_keywords_nltk(job_description)
@@ -133,21 +160,20 @@ def main():
             # Provide resume tips
             display_resume_tips()
 
-            # Create text for copying to clipboard
-            copied_text = "Extracted Keywords:\n"
+            # Create text for downloading extracted keywords
+            extracted_text = "Extracted Keywords:\n"
             for keyword, frequency in keywords:
-                copied_text += f"{keyword.capitalize()} (Frequency: {frequency})\n"
+                extracted_text += f"{keyword.capitalize()} (Frequency: {frequency})\n"
 
-            copied_text += "\nCategorized Keywords:\n"
+            extracted_text += "\nCategorized Keywords:\n"
             for category, skills in categorized_keywords.items():
-                copied_text += f"{category}: {', '.join(skills) if skills else 'None'}\n"
+                extracted_text += f"{category}: {', '.join(skills) if skills else 'None'}\n"
 
-            # Add "Copy to Clipboard" button
-            if st.button(f"Copy Extracted Keywords for {file.name}"):
-                copy_to_clipboard(copied_text)
+            # Add "Download Extracted Keywords" button
+            generate_download_link(extracted_text, f"Extracted_Keywords_{file.name}")
 
     else:
-        st.write("Please upload a job description file to extract keywords.")
+        st.write("Please upload a job description file (PDF or Text) to extract keywords.")
 
 # Run the app
 if __name__ == "__main__":
