@@ -1,26 +1,38 @@
-# app.py
-import spacy
+import nltk
 import streamlit as st
 from collections import Counter
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk import pos_tag
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import os
 
-# Load SpaCy's pre-trained model
-nlp = spacy.load("en_core_web_sm")
+# Download required NLTK datasets
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('averaged_perceptron_tagger')
 
 # Predefined lists for categorizing skills
 technical_skills = ['python', 'sql', 'aws', 'django', 'tensorflow', 'java', 'html', 'css', 'javascript', 'r', 'node.js']
 soft_skills = ['communication', 'leadership', 'teamwork', 'problem-solving', 'creativity', 'adaptability', 'time management', 'collaboration']
 certifications = ['pmp', 'aws certified', 'certified scrum master', 'google analytics', 'data science certification', 'project management certification']
 
-def extract_keywords(job_description):
+def extract_keywords_nltk(job_description):
     """
-    Extracts important keywords (nouns & proper nouns) from a job description.
+    Extracts important keywords (nouns & proper nouns) from a job description using NLTK.
     Filters out stopwords and common terms.
     """
-    doc = nlp(job_description)
-    keywords = [token.text.lower() for token in doc if token.pos_ in ['NOUN', 'PROPN'] and not token.is_stop]
+    stop_words = set(stopwords.words('english'))
+    word_tokens = word_tokenize(job_description)
+
+    # POS tagging (identify proper nouns, nouns, and verbs)
+    pos_tagged = pos_tag(word_tokens)
+
+    # Filter out stopwords and focus on relevant POS tags (NN for nouns, NNP for proper nouns)
+    keywords = [word.lower() for word, tag in pos_tagged if word.lower() not in stop_words and (tag == 'NN' or tag == 'NNP')]
+    
+    # Count the frequency of each keyword
     keyword_frequency = Counter(keywords)
     return keyword_frequency.most_common()
 
@@ -92,7 +104,7 @@ def main():
             st.subheader(f"Job Description: {file.name}")
 
             # Extract keywords from the job description
-            keywords = extract_keywords(job_description)
+            keywords = extract_keywords_nltk(job_description)
 
             # Display the most common keywords
             st.write("### Extracted Keywords")
