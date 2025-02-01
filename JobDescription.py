@@ -116,12 +116,17 @@ def main():
     if theme == "Dark":
         st.markdown('<style>body{background-color:#2e2e2e;color:white;}</style>', unsafe_allow_html=True)
 
-    # File uploader for multiple job descriptions (PDF or text)
-    uploaded_file = st.file_uploader("Upload Job Description(s)", type=["txt", "pdf"], accept_multiple_files=True)
+    # Option to paste job description text
+    job_description_text = st.text_area("Paste the Job Description Here:", height=200)
 
-    if uploaded_file:
+    # Option to upload a PDF or text file
+    uploaded_file = st.file_uploader("Or Upload Job Description (PDF/Text)", type=["txt", "pdf"], accept_multiple_files=True)
+
+    job_description = None
+    if job_description_text:
+        job_description = job_description_text  # Use the pasted text if available
+    elif uploaded_file:
         for file in uploaded_file:
-            job_description = ""
             if file.type == "application/pdf":
                 # Extract text from the PDF
                 job_description = extract_pdf_text(file)
@@ -131,49 +136,50 @@ def main():
                 job_description = file.read().decode("utf-8")
                 st.subheader(f"Job Description from Text File: {file.name}")
 
-            # Display the job description and option to copy it to clipboard
-            st.write("### Job Description:")
-            st.text_area("Job Description", job_description, height=200)
+    if job_description:
+        # Display the job description and option to copy it to clipboard
+        st.write("### Job Description:")
+        st.text_area("Job Description", job_description, height=200)
 
-            # Button to generate download link for the job description
-            generate_download_link(job_description, file.name)
+        # Button to generate download link for the job description
+        generate_download_link(job_description, "Job_Description")
 
-            # Extract keywords from the job description
-            keywords = extract_keywords_nltk(job_description)
+        # Extract keywords from the job description
+        keywords = extract_keywords_nltk(job_description)
 
-            # Display the most common keywords
-            st.write("### Extracted Keywords")
-            for keyword, frequency in keywords:
-                st.write(f"- {keyword.capitalize()} (Frequency: {frequency})")
+        # Display the most common keywords
+        st.write("### Extracted Keywords")
+        for keyword, frequency in keywords:
+            st.write(f"- {keyword.capitalize()} (Frequency: {frequency})")
 
-            # Categorize the keywords into Technical, Soft Skills, and Certifications
-            categorized_keywords = categorize_keywords(keywords)
-            st.write("### Categorized Keywords")
-            for category, skills in categorized_keywords.items():
-                st.write(f"**{category}:** {', '.join(skills) if skills else 'None'}")
+        # Categorize the keywords into Technical, Soft Skills, and Certifications
+        categorized_keywords = categorize_keywords(keywords)
+        st.write("### Categorized Keywords")
+        for category, skills in categorized_keywords.items():
+            st.write(f"**{category}:** {', '.join(skills) if skills else 'None'}")
 
-            # Generate and display word cloud
-            st.write("### Word Cloud of Keywords")
-            generate_wordcloud(keywords)
-            st.pyplot()
+        # Generate and display word cloud
+        st.write("### Word Cloud of Keywords")
+        generate_wordcloud(keywords)
+        st.pyplot()
 
-            # Provide resume tips
-            display_resume_tips()
+        # Provide resume tips
+        display_resume_tips()
 
-            # Create text for downloading extracted keywords
-            extracted_text = "Extracted Keywords:\n"
-            for keyword, frequency in keywords:
-                extracted_text += f"{keyword.capitalize()} (Frequency: {frequency})\n"
+        # Create text for downloading extracted keywords
+        extracted_text = "Extracted Keywords:\n"
+        for keyword, frequency in keywords:
+            extracted_text += f"{keyword.capitalize()} (Frequency: {frequency})\n"
 
-            extracted_text += "\nCategorized Keywords:\n"
-            for category, skills in categorized_keywords.items():
-                extracted_text += f"{category}: {', '.join(skills) if skills else 'None'}\n"
+        extracted_text += "\nCategorized Keywords:\n"
+        for category, skills in categorized_keywords.items():
+            extracted_text += f"{category}: {', '.join(skills) if skills else 'None'}\n"
 
-            # Add "Download Extracted Keywords" button
-            generate_download_link(extracted_text, f"Extracted_Keywords_{file.name}")
+        # Add "Download Extracted Keywords" button
+        generate_download_link(extracted_text, "Extracted_Keywords")
 
     else:
-        st.write("Please upload a job description file (PDF or Text) to extract keywords.")
+        st.write("Please enter or upload a job description.")
 
 # Run the app
 if __name__ == "__main__":
