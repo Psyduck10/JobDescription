@@ -1,39 +1,23 @@
-import nltk
+from textblob import TextBlob
 import streamlit as st
 from collections import Counter
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from nltk import pos_tag
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import fitz  # PyMuPDF for extracting text from PDFs
-
-# Download required NLTK datasets
-try:
-    nltk.download('punkt')
-    nltk.download('stopwords')
-    nltk.download('averaged_perceptron_tagger')
-except Exception as e:
-    st.error(f"Error downloading NLTK data: {e}")
 
 # Predefined lists for categorizing skills
 technical_skills = ['python', 'sql', 'aws', 'django', 'tensorflow', 'java', 'html', 'css', 'javascript', 'r', 'node.js']
 soft_skills = ['communication', 'leadership', 'teamwork', 'problem-solving', 'creativity', 'adaptability', 'time management', 'collaboration']
 certifications = ['pmp', 'aws certified', 'certified scrum master', 'google analytics', 'data science certification', 'project management certification']
 
-def extract_keywords_nltk(job_description):
+def extract_keywords_textblob(job_description):
     """
-    Extracts important keywords (nouns & proper nouns) from a job description using NLTK.
+    Extracts important keywords from a job description using TextBlob.
     Filters out stopwords and common terms.
     """
-    stop_words = set(stopwords.words('english'))
-    word_tokens = word_tokenize(job_description)
-
-    # POS tagging (identify proper nouns, nouns, and verbs)
-    pos_tagged = pos_tag(word_tokens)
-
-    # Filter out stopwords and focus on relevant POS tags (NN for nouns, NNP for proper nouns)
-    keywords = [word.lower() for word, tag in pos_tagged if word.lower() not in stop_words and (tag == 'NN' or tag == 'NNP')]
+    blob = TextBlob(job_description)
+    # Extract nouns (common nouns and proper nouns)
+    keywords = [word.lower() for word, pos in blob.tags if pos in ['NN', 'NNP']]
     
     # Count the frequency of each keyword
     keyword_frequency = Counter(keywords)
@@ -88,7 +72,6 @@ def extract_pdf_text(pdf_file):
     Extracts text from the uploaded PDF file using PyMuPDF.
     """
     try:
-        # Ensure the file is passed correctly as a file-like object (Streamlit handles this)
         doc = fitz.open(pdf_file)
         text = ""
         for page_num in range(len(doc)):
@@ -102,7 +85,6 @@ def generate_download_link(text, file_name):
     """
     Generate a download link for the text content.
     """
-    # Create the file and encode it to base64
     st.download_button(label=f"Download {file_name}",
                        data=text,
                        file_name=f"{file_name}.txt",
@@ -152,7 +134,7 @@ def main():
         generate_download_link(job_description, "Job_Description")
 
         # Extract keywords from the job description
-        keywords = extract_keywords_nltk(job_description)
+        keywords = extract_keywords_textblob(job_description)
 
         # Display the most common keywords
         st.write("### Extracted Keywords")
