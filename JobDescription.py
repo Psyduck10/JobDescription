@@ -85,14 +85,18 @@ def display_resume_tips():
 
 def extract_pdf_text(pdf_file):
     """
-    Extract text from the uploaded PDF file using PyMuPDF.
+    Extracts text from the uploaded PDF file using PyMuPDF.
     """
-    doc = fitz.open(pdf_file)
-    text = ""
-    for page_num in range(len(doc)):
-        page = doc.load_page(page_num)
-        text += page.get_text("text")
-    return text
+    try:
+        # Ensure the file is passed correctly as a file-like object (Streamlit handles this)
+        doc = fitz.open(pdf_file)
+        text = ""
+        for page_num in range(len(doc)):
+            page = doc.load_page(page_num)  # Extract text from each page
+            text += page.get_text("text")  # Get text in plain format
+        return text
+    except Exception as e:
+        return f"Error reading PDF: {str(e)}"
 
 def generate_download_link(text, file_name):
     """
